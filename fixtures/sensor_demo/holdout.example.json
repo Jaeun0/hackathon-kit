@@ -1,0 +1,9 @@
+{
+  "shift_days": 7,
+  "mutations": [
+    {"file": "readings.csv", "type": "duplicate", "where": {"sensor_id": "S03"}, "limit": 2},
+    {"file": "readings.csv", "type": "set", "where": {"level": "HIGH"}, "set": {"level": "high "}, "limit": 1},
+    {"file": "readings.csv", "type": "blank", "where": {"sensor_id": "S05"}, "columns": ["value"], "limit": 1},
+    {"file": "sensors.csv", "type": "append", "rows": [{"sensor_id": "S99", "zone": "ZONE-N", "kind": "LAB"}]}
+  ]
+}
