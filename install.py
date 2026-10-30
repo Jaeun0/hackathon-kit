@@ -10,9 +10,11 @@
   1. skills/kit-* 를 ~/.agents/skills/ 에 복사 (기존 kit-* 만 덮어씀)
   2. 과제 폴더에 AGENTS.md 배치 (이미 있으면 키트 규칙을 덧붙임, 두 번 붙이지 않음)
   3. 과제 폴더에 templates/*.md 복사 (같은 이름 파일이 있으면 건드리지 않음)
-  4. git 저장소면 verify/holdout/ 을 로컬 제외(.git/info/exclude)에 추가
+  4. git 저장소면 verify/holdout/·과제 폴더 안 스킬·키트를 로컬 제외(.git/info/exclude)에 추가
+  5. ~/kit-out (검증 산출물 폴더) 생성, ★ 질문과 다음 할 일 출력
 """
 import argparse
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -51,7 +53,8 @@ def kit_rules(skills_root):
     text = (KIT / "AGENTS.md").read_text(encoding="utf-8")
     rules, _, _ = text.partition("## 담당자 확인 사항")
     tools = Path(skills_root) / "kit-tools" / "scripts"
-    rules = rules.rstrip() + f"\n13. 키트 스크립트 위치: {tools} (본문을 읽지 말고 --help로 사용법 확인)\n"
+    n = len(re.findall(r"^\d+\. ", rules, re.M)) + 1
+    rules = rules.rstrip() + f"\n{n}. 키트 스크립트 위치: {tools} (본문을 읽지 말고 --help로 사용법 확인)\n"
     return rules
 
 
@@ -89,17 +92,35 @@ def place_templates(ws, dry):
     log(f"- 템플릿 복사: {', '.join(done) or '없음'}" + (f" · 이미 있어 둠: {', '.join(kept)}" if kept else ""))
 
 
-def exclude_holdout(ws, dry):
+def exclude_paths(ws, dry, skills_root=None):
+    """검증 산출물과 (과제 폴더 안에 받아진) 키트 폴더를 git 로컬 제외에 넣는다."""
     ex = ws / ".git" / "info" / "exclude"
     if not ex.parent.exists():
         log("- git 저장소가 아님: 제외 설정 건너뜀")
         return
     cur = ex.read_text(encoding="utf-8") if ex.exists() else ""
-    if "verify/holdout/" in cur:
-        return
-    if not dry:
-        ex.write_text(cur.rstrip("\n") + "\nverify/holdout/\n", encoding="utf-8")
-    log("- verify/holdout/ 을 git 로컬 제외에 추가")
+    want = ["verify/holdout/"]
+    sr = Path(skills_root).expanduser().resolve() if skills_root else None
+    if sr and (sr == ws or ws in sr.parents):
+        want.append("/" + sr.relative_to(ws).as_posix() + "/")
+    if ws in KIT.parents:
+        rel = KIT.relative_to(ws).parts[0]
+        want.append(f"/{rel}/")
+        log(f"- 주의: 키트가 과제 폴더 안({rel})에 있음. 제출 추적에서 제외함."
+            " Windows cmd면 ~ 대신 %USERPROFILE% 를 써서 받을 것")
+    add = [w for w in want if w not in cur]
+    if add and not dry:
+        ex.write_text(cur.rstrip("\n") + "\n" + "\n".join(add) + "\n", encoding="utf-8")
+    if add:
+        log(f"- git 로컬 제외에 추가: {', '.join(add)}")
+
+
+STAR = """
+★ 담당자에게 먼저 보낼 질문 (한 메시지에 하나씩)
+ 1. 결과에서 빼거나 따로 다뤄야 하는 대상(테스트·시험·예비·폐기·격리·단종·특정 구역)이 있나요?
+ 2. 결과를 누가 어떤 결정에 쓰나요? 어떤 형태(화면 표·합계·변경 전후 비교표·다운로드)로 받고 싶으세요?
+ 3. 판단이 안 되는 건은 결과에서 어떻게 보여야 하나요? 그 건만 표시하나요, 전체를 멈추나요?
+"""
 
 
 def main():
@@ -122,10 +143,16 @@ def main():
         copy_skills(Path.home() / ".codex" / "skills", a.dry_run)
     place_agents(ws, root, a.dry_run)
     place_templates(ws, a.dry_run)
-    exclude_holdout(ws, a.dry_run)
-    log("\n다음: 과제 폴더에서 codex 실행 → /skills 에 kit-* 가 보이는지 확인.")
-    log(f"안 보이면: python \"{KIT / 'install.py'}\" --workspace \"{ws}\" --also-codex-home 후 codex 재시작.")
-    log(f"그래도 안 보이면 스킬 없이 {KIT / 'PROMPTS.md'} 의 긴 프롬프트를 복사해 쓴다.")
+    exclude_paths(ws, a.dry_run, root)
+    if not a.dry_run:
+        (Path.home() / "kit-out").mkdir(exist_ok=True)
+    log(f"- 검증 산출물 폴더: {Path.home() / 'kit-out'}")
+    log(STAR)
+    log("다음")
+    log("- 터미널 1: codex → /status → $kit 자동완성 확인 → $kit-start")
+    log("- 터미널 2 ($kit-trapmap 보고 직후): + 로 새 터미널 → codex → $kit-quiz → 수업")
+    log(f"- 자동완성에 없으면: codex 종료 → python \"{KIT / 'install.py'}\" --workspace . --skills-dir .agents/skills → 다시 codex")
+    log(f"- 진행표·질문·긴 프롬프트: {KIT / 'PROMPTS.md'}")
     return 0
 
 

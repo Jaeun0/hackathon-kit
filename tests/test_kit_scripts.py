@@ -1,6 +1,7 @@
 """키트 스크립트 자체 시험. 저장소 루트에서: python -m unittest -v
 가짜 데이터(fixtures/sensor_demo)만 쓴다.
 """
+import os
 import shutil
 import socket
 import subprocess
@@ -71,6 +72,19 @@ class KitScripts(unittest.TestCase):
                         "--path", "/api/day?date={key}", "--keys", "2030-03-01")
         self.assertEqual(code, 0, out)
 
+    def test_install_places_templates_and_rule_number(self):
+        ws, home = self.tmp / "ws", self.tmp / "home"
+        ws.mkdir(); home.mkdir()
+        env = dict(os.environ, HOME=str(home), USERPROFILE=str(home))
+        p = subprocess.run([PY, str(ROOT / "install.py"), "--workspace", str(ws)], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", env=env)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertTrue((ws / "REQUESTS.md").exists())
+        self.assertIn("kit-quiz", p.stdout)
+        agents = (ws / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("14. 키트 스크립트 위치", agents)
+        self.assertTrue((home / ".agents" / "skills" / "kit-quiz" / "SKILL.md").exists())
+
     def test_holdout_shifts_dates_and_keeps_source(self):
         before = (F / "data" / "readings.csv").read_text(encoding="utf-8")
         dst = self.tmp / "ho"
@@ -103,6 +117,48 @@ class KitScripts(unittest.TestCase):
         code, out = run(S / "check_submit.py", cwd=repo)
         self.assertEqual(code, 1, out)
         self.assertIn("data/ 원본 변경", out)
+
+    @unittest.skipIf(shutil.which("git") is None, "git 없음")
+    def test_check_submit_requests_and_conflicts(self):
+        repo = self.tmp / "r2"
+        repo.mkdir()
+        g = lambda *a: subprocess.run(["git", *a], cwd=repo, capture_output=True)
+        g("init", "-q"); g("config", "user.email", "t@t"); g("config", "user.name", "t")
+        req = ("| # | 출처 | 원문 | 기준 | 위치 | 확인 | 상태 |\n| --- | --- | --- | --- | --- | --- | --- |\n"
+               "| R1 | README | 목록 표 | / 표 | app.py:10 | 200 | 완료 |\n"
+               "| R2 | 담당자 40분 | 그룹별 합계 | / 맨 아래 | | | 미착수 |\n"
+               "| R3 | 담당자 80분 | 비교표 | | | | 보류(파일 없음) |\n")
+        (repo / "REQUESTS.md").write_text(req, encoding="utf-8")
+        (repo / "DECISIONS.md").write_text("- D01 경계 포함: 미확인\n- D01 경계 포함: 확정\n", encoding="utf-8")
+        g("add", "."); g("commit", "-qm", "init")
+        code, out = run(S / "check_submit.py", cwd=repo)
+        self.assertEqual(code, 1, out)
+        self.assertIn("완료 1 · 보류 1 · 미완료 1", out)
+        self.assertIn("그룹별 합계", out)
+        self.assertIn("[상태 충돌] DECISIONS.md: D01", out)
+        (repo / "REQUESTS.md").write_text(req.replace("미착수", "완료"), encoding="utf-8")
+        g("commit", "-qam", "done")
+        code, out = run(S / "check_submit.py", cwd=repo)
+        self.assertEqual(code, 0, out)
+
+    @unittest.skipIf(shutil.which("git") is None, "git 없음")
+    def test_check_submit_pytest_flag(self):
+        repo = self.tmp / "r3"
+        (repo / "tests").mkdir(parents=True)
+        (repo / "REQUESTS.md").write_text("| R1 | a | b | c | d | e | 완료 |\n", encoding="utf-8")
+        (repo / "tests" / "test_ok.py").write_text("def test_ok():\n    assert 1 + 1 == 2\n", encoding="utf-8")
+        g = lambda *a: subprocess.run(["git", *a], cwd=repo, capture_output=True)
+        g("init", "-q"); g("config", "user.email", "t@t"); g("config", "user.name", "t")
+        g("add", "."); g("commit", "-qm", "init")
+        code, out = run(S / "check_submit.py", "--pytest", cwd=repo)
+        if "No module named pytest" in out:
+            self.skipTest("pytest 미설치")
+        self.assertEqual(code, 0, out)
+        (repo / "tests" / "test_bad.py").write_text("def test_bad():\n    assert 1 == 2\n", encoding="utf-8")
+        g("add", "."); g("commit", "-qm", "bad")
+        code, out = run(S / "check_submit.py", "--pytest", cwd=repo)
+        self.assertEqual(code, 1, out)
+        self.assertIn("pytest 실패", out)
 
 
 if __name__ == "__main__":

@@ -6,10 +6,10 @@
 
 | 경로 | 무엇 | 누가 언제 읽나 |
 | --- | --- | --- |
-| `AGENTS.md` | 작업 규칙 12줄 | Codex, 세션 시작 때 자동 |
-| `skills/kit-*` | 단계별 스킬 9개 (`$kit-start` … `$kit-final`) | Codex, 부를 때만 |
+| `AGENTS.md` | 작업 규칙 13줄 | Codex, 세션 시작 때 자동 |
+| `skills/kit-*` | 단계별 스킬 9개 + 선생님 스킬 `$kit-quiz` | Codex, 부를 때만 |
 | `skills/kit-tools/scripts/` | 표준 라이브러리 스크립트 5개 | 스킬이나 내가 실행 |
-| `templates/` | PLAN·DECISIONS·REPORT·HANDOFF·ESSAY_CARDS 빈 양식 | Codex와 나 |
+| `templates/` | PLAN·REQUESTS·DECISIONS·REPORT·HANDOFF·ESSAY_CARDS 빈 양식 | Codex와 나 |
 | `PROMPTS.md` | 시간표, 담당자 질문, 스킬이 안 보일 때 쓸 긴 프롬프트 | 나 |
 | `install.py` | 스킬·AGENTS.md·템플릿 배치 | 시작 직후 한 번 |
 | `docs/QUICKSTART.md` | 시험·리허설에서 쓰는 순서 | 나 |
@@ -18,14 +18,17 @@
 ## 빠른 사용
 
 ```bash
-git clone https://github.com/<아이디>/hackathon-kit.git ~/hackathon-kit
-python ~/hackathon-kit/install.py --workspace <과제 폴더>     # codex 실행 전에
-cd <과제 폴더> && codex                                       # /skills 로 kit-* 확인
+git clone https://github.com/Jaeun0/hackathon-kit ~/kit
+python3 ~/kit/install.py --workspace .        # 과제 폴더에서, codex 실행 전에
+codex                                          # 터미널 1: $kit 자동완성 확인 → $kit-start
+# 터미널 2 (trapmap 보고 직후): codex → $kit-quiz → 수업
 ```
 
 자세한 순서는 [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
 ## 단계와 사람이 개입하는 지점
+
+작업은 터미널 1, 서술형 연습은 터미널 2(읽기 전용 퀴즈 세션)에서 동시에 진행한다.
 
 | 단계 | 스킬 | AI가 하는 일 | **사람이 하는 일** |
 | --- | --- | --- | --- |
@@ -34,7 +37,7 @@ cd <과제 폴더> && codex                                       # /skills 로 
 | 규칙 | `$kit-rule` (반복) | 기대값 테스트 먼저 → 구현 → 전후·대안 숫자 | 체크포인트 2: 1건 따라가기 검산, "왜" 답 |
 | 검증 | `$kit-verify` | 독립 재계산, 자가 홀드아웃, 재스캔 | 체크포인트 3: 튀는 그룹 담당자 질문 |
 | 정리 | `$kit-docsync` | 문서 정합, 최종 커밋 | 기능 동결 결정 |
-| 대비 | `$kit-essay` | 근거 위치 제시·채점만 | **답은 직접 쓴다** |
+| 대비 | 터미널 2 `$kit-quiz` (작업 중 계속), `$kit-essay` (동결 뒤 10분) | 예상 문제·모범 답(코드로 확인한 숫자만), 근거 카드 | 공부하고, 서술형은 직접 쓴다 |
 | 제출 | `$kit-final` | 재실행·점검 숫자 보고 | 94% 시점에 제출 |
 
 원칙: 규칙은 문서대로 / 전체를 멈추지 않는다 / 먼저 끝까지 돌고 그다음 정확하게 / 내 코드 말고 다른 길로 정답 확인 / 결정은 숫자 두 개로 남긴다.
