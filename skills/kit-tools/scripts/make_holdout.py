@@ -73,7 +73,7 @@ def main():
     ap.add_argument("--shift-days", type=int, help="날짜 이동 일수 (설정보다 우선)")
     a = ap.parse_args()
     src, dst = Path(a.src).resolve(), Path(a.dst).resolve()
-    if dst == src or src in dst.parents:
+    if dst == src or src in dst.parents or dst in src.parents or dst == Path.cwd():
         print("원본 폴더나 그 안에는 만들 수 없음. 다른 위치를 지정할 것")
         return 1
     cfg = json.loads(Path(a.config).read_text(encoding="utf-8")) if a.config else {}
