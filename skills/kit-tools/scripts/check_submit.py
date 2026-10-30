@@ -51,7 +51,7 @@ def check_requests(ws, fails, notes):
         if not cells or cells[0] in ("#", "번호") or "(채울 것)" in s:
             continue
         status = cells[-1]
-        if status.startswith("완료")
+        if status.startswith("완료"):
             done += 1
         elif "보류" in status:
             held.append(f"REQUESTS.md:{i} {cells[min(2, len(cells) - 1)][:40]}")
