@@ -86,7 +86,7 @@ def run_cli(a):
     cmd = fill(a.cmd, data=a.data, out=a.out or "")
     print(f"실행: {cmd}")
     t0 = time.time()
-    p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    p = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
     dt = round(time.time() - t0, 1)
     fails = []
     print(f"- 종료 코드 {p.returncode} · {dt}초")
